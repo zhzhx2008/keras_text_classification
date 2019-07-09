@@ -14,13 +14,15 @@
 - 数据扩充
     - 倒序(char or word)
     - 以一定的概率随机增加或者去掉char or word
-    - 以一定的概率随机打乱词序
-    - 翻译
+    - 以一定的概率随机打乱词序或部分词交换位置
+    - 翻译成别的语言再翻译回来
+    - 同义词替换或者插入
 ## feature extraction
-基本单位：char、word、pos
+基本单位：char, word, pos, n-gram
 ### ML特征
-- BOW（0和1，or tf，or tf-idf）
-    - 0和1
+- BOW
+    - count
+    - binary
     - tf
     - tf-idf
     - Entropy-based term weighting
@@ -37,11 +39,12 @@
 - 正则
 - 否定词
 - 疑问词
+- 句法分析特征
 - char length
 - word length
 - stopwords count
 ### DL特征
-- word embeddings(char, word, pos)
+- word embeddings(char, word, pos, n-gram)
 - sentence embeddings
 - 随机初始化
 - 基于预训练的向量
@@ -49,7 +52,7 @@
     - glove
     - fasttext
     - 自己训练
-- 不同方法训练的词向量concatenate（2d or 3d），or avg
+- 不同方法训练的词向量concatenate（2d or 3d），or avg，or 20%A+80%B，etc
 ## model
 ### ML methods
 LR,xgboost,lightgbm,MultinomialNB,BernoulliNB,LinearSVC,GBDT,MLP,...

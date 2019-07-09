@@ -11,7 +11,7 @@ import numpy as np
 from keras import Input
 from keras import Model
 from keras.callbacks import EarlyStopping, ModelCheckpoint
-from keras.layers import Conv1D, concatenate, Dropout, GlobalMaxPool1D
+from keras.layers import Conv1D, concatenate, Dropout, GlobalMaxPool1D, SpatialDropout1D
 from keras.layers import Embedding, Dense
 from keras.preprocessing.sequence import pad_sequences
 from keras.preprocessing.text import Tokenizer
@@ -82,6 +82,7 @@ x_test_word_index = pad_sequences(x_test_word_index, maxlen=max_word_length)
 
 input = Input(shape=(max_word_length,))
 embedding = Embedding(len(tokenizer.word_index) + 1, 128)(input)
+embedding = SpatialDropout1D(0.2)(embedding)
 cnn1 = Conv1D(100, 3, padding='same', strides=1, activation='relu')(embedding)
 cnn1 = GlobalMaxPool1D()(cnn1)
 cnn2 = Conv1D(100, 4, padding='same', strides=1, activation='relu')(embedding)
@@ -89,7 +90,7 @@ cnn2 = GlobalMaxPool1D()(cnn2)
 cnn3 = Conv1D(100, 5, padding='same', strides=1, activation='relu')(embedding)
 cnn3 = GlobalMaxPool1D()(cnn3)
 cnn = concatenate([cnn1, cnn2, cnn3], axis=-1)
-drop = Dropout(0.5)(cnn)
+drop = Dropout(0.2)(cnn)
 output = Dense(num_classes, activation='softmax')(drop)
 model = Model(inputs=input, outputs=output)
 model.compile(loss='categorical_crossentropy', optimizer='adam', metrics=['accuracy'])

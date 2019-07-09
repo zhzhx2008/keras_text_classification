@@ -11,8 +11,8 @@ import numpy as np
 from keras import Input
 from keras import Model
 from keras.callbacks import EarlyStopping, ModelCheckpoint
-from keras.layers import CuDNNLSTM
-from keras.layers import Dropout
+from keras.layers import CuDNNLSTM, GRU, SimpleRNN, CuDNNGRU, LSTM, SpatialDropout1D
+from keras.layers import Dropout, Bidirectional
 from keras.layers import Embedding, Dense
 from keras.preprocessing.sequence import pad_sequences
 from keras.preprocessing.text import Tokenizer
@@ -83,17 +83,29 @@ x_test_word_index = pad_sequences(x_test_word_index, maxlen=max_word_length)
 
 input = Input(shape=(max_word_length,))
 embedding = Embedding(len(tokenizer.word_index) + 1, 128)(input)
+embedding = SpatialDropout1D(0.2)(embedding)
+
 # rnn = SimpleRNN(100)(embedding)
+
 # rnn = Bidirectional(SimpleRNN(100))(embedding)
+
 # rnn = GRU(100)(embedding)
+
 # rnn = Bidirectional(GRU(100))(embedding)
+
 # rnn = CuDNNGRU(100)(embedding)
+
 # rnn = Bidirectional(CuDNNGRU(100))(embedding)
-# rnn = LSTM(100)(embedding)
+
+rnn = LSTM(100)(embedding)
+
 # rnn = Bidirectional(LSTM(100))(embedding)
-rnn = CuDNNLSTM(100)(embedding)
+
+# rnn = CuDNNLSTM(100)(embedding)
+
 # rnn = Bidirectional(CuDNNLSTM(100))(embedding)
-drop = Dropout(0.5)(rnn)
+
+drop = Dropout(0.2)(rnn)
 output = Dense(num_classes, activation='softmax')(drop)
 model = Model(inputs=input, outputs=output)
 model.compile(loss='categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
