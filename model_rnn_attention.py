@@ -5,38 +5,18 @@
 
 import os
 import warnings
-import logging
-import os
-import pickle
-import random as rn
-import warnings
-from time import time
 
+import jieba
 import numpy as np
-import pandas as pd
-import tensorflow as tf
 from keras import Input
 from keras import Model
 from keras import backend as K
 from keras import initializers, regularizers, constraints
 from keras.callbacks import EarlyStopping, ModelCheckpoint
 from keras.engine.topology import Layer
-from keras.layers import Concatenate, Multiply, Subtract, Conv1D, GlobalAveragePooling1D, concatenate
-from keras.layers import Dense, Lambda, Bidirectional, CuDNNLSTM
-from keras.layers import Embedding
-from keras.optimizers import Adam
-from keras.preprocessing import sequence
-from keras.preprocessing import text
-from sklearn import metrics
-from sklearn.model_selection import StratifiedKFold
-import jieba
-import numpy as np
-from keras import Input
-from keras import Model
-from keras.callbacks import EarlyStopping, ModelCheckpoint
-from keras.layers import CuDNNLSTM, GRU, SimpleRNN, CuDNNGRU, LSTM, SpatialDropout1D
 from keras.layers import Dropout, Bidirectional
 from keras.layers import Embedding, Dense
+from keras.layers import LSTM, SpatialDropout1D
 from keras.preprocessing.sequence import pad_sequences
 from keras.preprocessing.text import Tokenizer
 from keras.utils import to_categorical
@@ -57,7 +37,7 @@ def get_labels_datas(input_dir):
         txt_names = os.listdir(os.path.join(input_dir, label_dir))
         for txt_name in txt_names:
             with open(os.path.join(input_dir, label_dir, txt_name), 'r') as fin:
-                content = fin.readline()# 只取第一行
+                content = fin.readline()  # 只取第一行
                 content = content.strip().replace(' ', '')
                 datas_word.append(' '.join(jieba.cut(content)))
                 datas_char.append(' '.join(list(content)))
@@ -74,7 +54,8 @@ def get_label_id_map(labels):
         label_id_map[label] = index
     return id_label_map, label_id_map
 
-
+# 《Feed-Forward Networks with Attention Can Solve Some Long-Term Memory Problems》
+# [https://arxiv.org/abs/1512.08756]
 # https://www.kaggle.com/qqgeogor/keras-lstm-attention-glove840b-lb-0-043
 class Attention(Layer):
     def __init__(self, step_dim,
@@ -97,7 +78,7 @@ class Attention(Layer):
             model.add(Attention())
         """
         self.supports_masking = True
-        #self.init = initializations.get('glorot_uniform')
+        # self.init = initializations.get('glorot_uniform')
         self.init = initializers.get('glorot_uniform')
 
         self.W_regularizer = regularizers.get(W_regularizer)
@@ -164,12 +145,13 @@ class Attention(Layer):
 
         a = K.expand_dims(a)
         weighted_input = x * a
-    #print weigthted_input.shape
+        # print(weighted_input.shape)
+        # return weighted_input
         return K.sum(weighted_input, axis=1)
 
     def compute_output_shape(self, input_shape):
-        #return input_shape[0], input_shape[-1]
-        return input_shape[0],  self.features_dim
+        # return input_shape[0], input_shape[1],  self.features_dim
+        return input_shape[0], self.features_dim
 
 
 input_dir = './data/THUCNews'
@@ -227,7 +209,11 @@ embedding = SpatialDropout1D(0.2)(embedding)
 # rnn = Attention(max_word_length)(rnn)
 
 rnn = Bidirectional(LSTM(100, return_sequences=True))(embedding)
-rnn = Attention(max_word_length)(rnn)
+rnn = Attention(max_word_length)(rnn)  # metrics value=0.38647342980771826
+# rnn = GlobalMaxPool1D()(rnn)# 0.33816425149567464
+# rnn = GlobalAvgPool1D()(rnn)# 0.20772946881499268
+# rnn = Flatten()(rnn) # 0.3140096618357488
+# rnn = concatenate([GlobalMaxPool1D()(rnn), GlobalAvgPool1D()(rnn)])# 0.24396135280097742
 
 # rnn = CuDNNLSTM(100, return_sequences=True)(embedding)
 # rnn = Attention(max_word_length)(rnn)

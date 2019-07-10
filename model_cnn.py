@@ -33,7 +33,7 @@ def get_labels_datas(input_dir):
         txt_names = os.listdir(os.path.join(input_dir, label_dir))
         for txt_name in txt_names:
             with open(os.path.join(input_dir, label_dir, txt_name), 'r') as fin:
-                content = fin.readline()# 只取第一行
+                content = fin.readline()  # 只取第一行
                 content = content.strip().replace(' ', '')
                 datas_word.append(' '.join(jieba.cut(content)))
                 datas_char.append(' '.join(list(content)))
@@ -83,6 +83,7 @@ x_test_word_index = pad_sequences(x_test_word_index, maxlen=max_word_length)
 input = Input(shape=(max_word_length,))
 embedding = Embedding(len(tokenizer.word_index) + 1, 128)(input)
 embedding = SpatialDropout1D(0.2)(embedding)
+
 cnn1 = Conv1D(100, 3, padding='same', strides=1, activation='relu')(embedding)
 cnn1 = GlobalMaxPool1D()(cnn1)
 cnn2 = Conv1D(100, 4, padding='same', strides=1, activation='relu')(embedding)
@@ -90,6 +91,24 @@ cnn2 = GlobalMaxPool1D()(cnn2)
 cnn3 = Conv1D(100, 5, padding='same', strides=1, activation='relu')(embedding)
 cnn3 = GlobalMaxPool1D()(cnn3)
 cnn = concatenate([cnn1, cnn2, cnn3], axis=-1)
+
+# cnn1 = Conv1D(100, 3, padding='same', strides=1, activation='relu')(embedding)
+# cnn1 = MaxPool1D(pool_size=3, strides=3, padding='same')(cnn1)
+# cnn2 = Conv1D(100, 4, padding='same', strides=1, activation='relu')(embedding)
+# cnn2 = MaxPool1D(pool_size=3, strides=3, padding='same')(cnn2)
+# cnn3 = Conv1D(100, 5, padding='same', strides=1, activation='relu')(embedding)
+# cnn3 = MaxPool1D(pool_size=3, strides=3, padding='same')(cnn3)
+# cnn = concatenate([cnn1, cnn2, cnn3], axis=-1)
+# cnn = Flatten()(cnn)
+
+# cnn = Conv1D(filters=256, kernel_size=3, strides=1, padding='same', activation='relu')(embedding)
+# cnn = MaxPool1D(pool_size=3, strides=3, padding='same')(cnn)
+# cnn = Conv1D(filters=128, kernel_size=3, strides=1, padding='same', activation='relu')(cnn)
+# cnn = MaxPool1D(pool_size=3, strides=3, padding='same')(cnn)
+# cnn = Conv1D(filters=64, kernel_size=3, strides=1, padding='same', activation='relu')(cnn)
+# cnn = MaxPool1D(pool_size=3, strides=3, padding='same')(cnn)
+# cnn = Flatten()(cnn)
+
 drop = Dropout(0.2)(cnn)
 output = Dense(num_classes, activation='softmax')(drop)
 model = Model(inputs=input, outputs=output)
