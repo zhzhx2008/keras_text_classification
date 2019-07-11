@@ -1,19 +1,31 @@
-#coding=utf-8
+# coding=utf-8
 
 # @Author  : zhzhx2008
 # @Time    : 19-7-11
 #
-# Reference:
+# From:
 # https://kexue.fm/archives/6736
 # https://github.com/CyberZHG/keras-bert
 
 
-import warnings
 import os
+import warnings
+
 import numpy as np
+from keras import Input
+from keras.callbacks import EarlyStopping
+from keras.callbacks import ModelCheckpoint
+from keras.layers import Lambda, Dense
+from keras.models import Model
+from keras.optimizers import Adam
 from keras.utils import to_categorical
 from keras_bert import load_trained_model_from_checkpoint, Tokenizer
 from sklearn.model_selection import train_test_split
+
+warnings.filterwarnings("ignore")
+
+seed = 2019
+np.random.seed(seed)
 
 config_path = '/home/zhzhx/workspace/pythonworkspace/bert/chinese_L-12_H-768_A-12/bert_config.json'
 checkpoint_path = '/home/zhzhx/workspace/pythonworkspace/bert/chinese_L-12_H-768_A-12/bert_model.ckpt'
@@ -33,27 +45,18 @@ class OurTokenizer(Tokenizer):
             if c in self._token_dict:
                 R.append(c)
             elif self._is_space(c):
-                R.append('[unused1]') # space类用未经训练的[unused1]表示
+                R.append('[unused1]')  # space类用未经训练的[unused1]表示
             else:
-                R.append('[UNK]') # 剩余的字符是[UNK]
+                R.append('[UNK]')  # 剩余的字符是[UNK]
         return R
 
 
 tokenizer = OurTokenizer(token_dict)
-res = tokenizer.tokenize(u'今天天气不错')# 输出是 ['[CLS]', u'今', u'天', u'天', u'气', u'不', u'错', '[SEP]']
 
 
-
-
-
-
-
-
-
-warnings.filterwarnings("ignore")
-
-seed = 2019
-np.random.seed(seed)
+# # test
+# res = tokenizer.tokenize(u'今天天气不错')
+# print(res)  # 输出是 ['[CLS]', u'今', u'天', u'天', u'气', u'不', u'错', '[SEP]']
 
 
 def get_labels_datas(input_dir):
@@ -100,49 +103,44 @@ y_dev_index = to_categorical(y_dev, num_classes)
 y_test_index = to_categorical(y_test, num_classes)
 
 
-
 def seq_padding(X, padding=0):
     L = [len(x) for x in X]
     ML = max(L)
-    return np.array([
-        np.concatenate([x, [padding] * (ML - len(x))]) if len(x) < ML else x for x in X
-    ])
+    return np.array([np.concatenate([x, [padding] * (ML - len(x))]) if len(x) < ML else x for x in X])
 
 
 class data_generator:
-    def __init__(self, data, batch_size=32):
-        self.data = data
+    def __init__(self, datas, labels, batch_size=32):
+        self.datas = datas
+        self.labels = labels
         self.batch_size = batch_size
-        self.steps = len(self.data) // self.batch_size
-        if len(self.data) % self.batch_size != 0:
+        self.steps = len(self.datas) // self.batch_size
+        if len(self.datas) % self.batch_size != 0:
             self.steps += 1
+
     def __len__(self):
         return self.steps
+
     def __iter__(self):
         while True:
-            idxs = range(len(self.data))
+            idxs = list(range(len(self.datas)))
             np.random.shuffle(idxs)
             X1, X2, Y = [], [], []
             for i in idxs:
-                d = self.data[i]
-                text = d[0][:maxlen]
+                data = self.datas[i]
+                label = self.labels[i].tolist()
+                text = data[:maxlen]
                 x1, x2 = tokenizer.encode(first=text)
-                y = d[1]
+                y = label
                 X1.append(x1)
                 X2.append(x2)
-                Y.append([y])
+                Y.append(y)
                 if len(X1) == self.batch_size or i == idxs[-1]:
                     X1 = seq_padding(X1)
                     X2 = seq_padding(X2)
                     Y = seq_padding(Y)
                     yield [X1, X2], Y
                     [X1, X2, Y] = [], [], []
-
-
-from keras.layers import *
-from keras.models import Model
-import keras.backend as K
-from keras.optimizers import Adam
 
 
 bert_model = load_trained_model_from_checkpoint(config_path, checkpoint_path, seq_len=None)
@@ -155,24 +153,36 @@ x2_in = Input(shape=(None,))
 
 x = bert_model([x1_in, x2_in])
 x = Lambda(lambda x: x[:, 0])(x)
-p = Dense(1, activation='sigmoid')(x)
+p = Dense(num_classes, activation='softmax')(x)
 
 model = Model([x1_in, x2_in], p)
 model.compile(
-    loss='binary_crossentropy',
-    optimizer=Adam(1e-5), # 用足够小的学习率
+    loss='categorical_crossentropy',
+    optimizer=Adam(1e-5),  # 用足够小的学习率
     metrics=['accuracy']
 )
 model.summary()
 
+train_D = data_generator(datas_train, y_train_index, batch_size=4)
+valid_D = data_generator(datas_dev, y_dev_index, batch_size=4)
+test_D = data_generator(datas_test, y_test_index, batch_size=4)
 
-train_D = data_generator(train_data)
-valid_D = data_generator(valid_data)
-
+model_weight_file = './model_bert.h5'
+model_file = './model_bert.model'
+early_stopping = EarlyStopping(monitor='val_loss', patience=5)
+model_checkpoint = ModelCheckpoint(model_weight_file, save_best_only=True, save_weights_only=True)
 model.fit_generator(
     train_D.__iter__(),
-    steps_per_epoch=len(train_D),
-    epochs=5,
+    steps_per_epoch=train_D.steps,
+    epochs=1,
     validation_data=valid_D.__iter__(),
-    validation_steps=len(valid_D)
+    validation_steps=valid_D.steps,
+    callbacks=[early_stopping, model_checkpoint],
+    shuffle=True
 )
+evaluate = model.evaluate_generator(test_D.__iter__(), steps=test_D.steps)
+print('loss value=' + str(evaluate[0]))
+print('metrics value=' + str(evaluate[1]))
+
+# loss value=0.5063543835625289
+# metrics value=0.8571428571428571

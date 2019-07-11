@@ -122,3 +122,22 @@ for k, v in clf_dict.items():
     y_pred_int = [round(value) for value in y_pred]
     accuracy = accuracy_score(y_test, y_pred_int)
     print('accuracy of ' + k + '=' + str(accuracy))
+
+
+
+# accuracy of LogisticRegression=0.6666666666666666
+# accuracy of SGDClassifier=0.6111111111111112
+# accuracy of Perceptron=0.6349206349206349
+# accuracy of MLPClassifier=0.6587301587301587
+# accuracy of KNeighborsClassifier=0.38095238095238093
+# accuracy of SVC=0.29365079365079366
+# accuracy of LinearSVC=0.6746031746031746
+# accuracy of DecisionTreeClassifier=0.5238095238095238
+# accuracy of RandomForestClassifier=0.5079365079365079
+# accuracy of ExtraTreesClassifier=0.5555555555555556
+# accuracy of AdaBoostClassifier=0.4603174603174603
+# accuracy of GradientBoostingClassifier=0.5793650793650794
+# accuracy of MultinomialNB=0.626984126984127
+# accuracy of BernoulliNB=0.42063492063492064
+# accuracy of XGBClassifier=0.5714285714285714
+# accuracy of LGBMClassifier=0.3968253968253968

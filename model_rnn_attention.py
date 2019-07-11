@@ -54,6 +54,7 @@ def get_label_id_map(labels):
         label_id_map[label] = index
     return id_label_map, label_id_map
 
+
 # 《Feed-Forward Networks with Attention Can Solve Some Long-Term Memory Problems》
 # [https://arxiv.org/abs/1512.08756]
 # https://www.kaggle.com/qqgeogor/keras-lstm-attention-glove840b-lb-0-043
@@ -245,3 +246,6 @@ model.save(model_file)
 evaluate = model.evaluate(x_test_word_index, y_test_index, batch_size=32, verbose=2)
 print('loss value=' + str(evaluate[0]))
 print('metrics value=' + str(evaluate[1]))
+
+# loss value=2.048406752329024
+# metrics value=0.5555555560286083

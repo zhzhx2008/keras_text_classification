@@ -26,7 +26,7 @@ def block(x, pool_size=3, strides=2, kernel_size=3):
     x_origin = x
     x = Activation('relu')(x) # pre-activation
     x = Conv1D(filters=filters, kernel_size=kernel_size, padding='same', activation='linear')(x)
-    x = Activation('relu')(x)
+    x = Activation('relu')(x) # pre-activation
     x = Conv1D(filters=filters, kernel_size=kernel_size, padding='same', activation='linear')(x)
     x = add([x_origin, x]) # shortcut connections
     return x
@@ -130,3 +130,6 @@ model.save(model_file)
 evaluate = model.evaluate(x_test_word_index, y_test_index, batch_size=32, verbose=2)
 print('loss value=' + str(evaluate[0]))
 print('metrics value=' + str(evaluate[1]))
+
+# loss value=1.3148481088971335
+# metrics value=0.5000000018922109

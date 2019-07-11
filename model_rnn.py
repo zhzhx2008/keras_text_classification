@@ -129,3 +129,7 @@ model.save(model_file)
 evaluate = model.evaluate(x_test_word_index, y_test_index, batch_size=32, verbose=2)
 print('loss value=' + str(evaluate[0]))
 print('metrics value=' + str(evaluate[1]))
+
+
+# loss value=1.5611179366944328
+# metrics value=0.5238095242825765

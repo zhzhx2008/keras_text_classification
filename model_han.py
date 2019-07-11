@@ -2,6 +2,7 @@
 
 # @Author  : zhzhx2008
 # @Time    : 18-10-10
+#
 # https://github.com/richliao/textClassifier/blob/master/textClassifierHATT.py
 
 # author - Richard Liao
@@ -231,3 +232,6 @@ model.save(model_file)
 evaluate = model.evaluate(x_test, y_test_index, batch_size=32, verbose=2)
 print('loss value=' + str(evaluate[0]))
 print('metrics value=' + str(evaluate[1]))
+
+# loss value=1.13971778986946
+# metrics value=0.7222222165455894

@@ -99,3 +99,7 @@ model.save(model_file)
 evaluate = model.evaluate(x_test_tfidf, y_test_index, batch_size=32, verbose=2)
 print('loss value=' + str(evaluate[0]))
 print('metrics value=' + str(evaluate[1]))
+
+
+# loss value=0.9043319395610264
+# metrics value=0.6587301634606861

@@ -30,7 +30,7 @@ def get_labels_datas(input_dir):
         txt_names = os.listdir(os.path.join(input_dir, label_dir))
         for txt_name in txt_names:
             with open(os.path.join(input_dir, label_dir, txt_name), 'r') as fin:
-                content = fin.readline()# 只取第一行
+                content = fin.readline()  # 只取第一行
                 content = content.strip().replace(' ', '，')
                 datas_word.append(' '.join(jieba.cut(content)))
                 datas_char.append(' '.join(list(content)))
@@ -58,21 +58,21 @@ labels_train, labels_dev, datas_word_train, datas_word_dev, datas_char_train, da
 y_train = [label_id_map.get(x) for x in labels_train]
 y_dev = [label_id_map.get(x) for x in labels_dev]
 y_test = [label_id_map.get(x) for x in labels_test]
-print('y_train\t\tlength=%d' %(len(y_train)))
-print('y_dev\t\tlength=%d' %(len(y_dev)))
-print('y_test\t\tlength=%d' %(len(y_test)))
+print('y_train\t\tlength=%d' % (len(y_train)))
+print('y_dev\t\tlength=%d' % (len(y_dev)))
+print('y_test\t\tlength=%d' % (len(y_test)))
 print()
 
 # sklearn extract feature
 # feature1: count(csr_matrix)
-vectorizer = CountVectorizer(token_pattern=r"(?u)\b\w+\b", ngram_range=(1,1))# token_pattern must remove \w, or single char not counted
+vectorizer = CountVectorizer(token_pattern=r"(?u)\b\w+\b", ngram_range=(1, 1))  # token_pattern must remove \w, or single char not counted
 vectorizer.fit(datas_word_train)
 x_train_count = vectorizer.transform(datas_word_train)
 x_dev_count = vectorizer.transform(datas_word_dev)
 x_test_count = vectorizer.transform(datas_word_test)
-print("x_train_count\t\tshape=(%s, %s)" %(x_train_count.shape[0], x_train_count.shape[1]))
-print("x_dev_count\t\tshape=(%s, %s)" %(x_dev_count.shape[0], x_dev_count.shape[1]))
-print("x_test_count\t\tshape=(%s, %s)" %(x_test_count.shape[0], x_test_count.shape[1]))
+print("x_train_count\t\tshape=(%s, %s)" % (x_train_count.shape[0], x_train_count.shape[1]))
+print("x_dev_count\t\tshape=(%s, %s)" % (x_dev_count.shape[0], x_dev_count.shape[1]))
+print("x_test_count\t\tshape=(%s, %s)" % (x_test_count.shape[0], x_test_count.shape[1]))
 print()
 
 # feature2: binary(csr_matrix)
@@ -82,20 +82,20 @@ x_test_binary = x_test_count.copy()
 x_train_binary[x_train_binary > 0] = 1.0
 x_dev_binary[x_dev_binary > 0] = 1.0
 x_test_binary[x_test_binary > 0] = 1.0
-print("x_train_binary\t\tshape=(%s, %s)" %(x_train_binary.shape[0], x_train_binary.shape[1]))
-print("x_dev_binary\t\tshape=(%s, %s)" %(x_dev_binary.shape[0], x_dev_binary.shape[1]))
-print("x_test_binary\t\tshape=(%s, %s)" %(x_test_binary.shape[0], x_test_binary.shape[1]))
+print("x_train_binary\t\tshape=(%s, %s)" % (x_train_binary.shape[0], x_train_binary.shape[1]))
+print("x_dev_binary\t\tshape=(%s, %s)" % (x_dev_binary.shape[0], x_dev_binary.shape[1]))
+print("x_test_binary\t\tshape=(%s, %s)" % (x_test_binary.shape[0], x_test_binary.shape[1]))
 print()
 
 # feature3: tf-idf(csr_matrix)
-vectorizer = TfidfVectorizer(token_pattern=r"(?u)\b\w+\b", ngram_range=(1,1))
+vectorizer = TfidfVectorizer(token_pattern=r"(?u)\b\w+\b", ngram_range=(1, 1))
 vectorizer.fit(datas_word_train)
 x_train_tfidf = vectorizer.transform(datas_word_train)
 x_dev_tfidf = vectorizer.transform(datas_word_dev)
 x_test_tfidf = vectorizer.transform(datas_word_test)
-print("x_train_tfidf\t\tshape=(%s, %s)" %(x_train_tfidf.shape[0], x_train_tfidf.shape[1]))
-print("x_dev_tfidf\t\tshape=(%s, %s)" %(x_dev_tfidf.shape[0], x_dev_tfidf.shape[1]))
-print("x_test_tfidf\t\tshape=(%s, %s)" %(x_test_tfidf.shape[0], x_test_tfidf.shape[1]))
+print("x_train_tfidf\t\tshape=(%s, %s)" % (x_train_tfidf.shape[0], x_train_tfidf.shape[1]))
+print("x_dev_tfidf\t\tshape=(%s, %s)" % (x_dev_tfidf.shape[0], x_dev_tfidf.shape[1]))
+print("x_test_tfidf\t\tshape=(%s, %s)" % (x_test_tfidf.shape[0], x_test_tfidf.shape[1]))
 print()
 
 # keras extract feature
@@ -105,36 +105,36 @@ tokenizer.fit_on_texts(datas_word_train)
 x_train_count = tokenizer.texts_to_matrix(datas_word_train, mode='count')
 x_dev_count = tokenizer.texts_to_matrix(datas_word_dev, mode='count')
 x_test_count = tokenizer.texts_to_matrix(datas_word_test, mode='count')
-print("x_train_count\t\tshape=(%s, %s)" %(x_train_count.shape[0], x_train_count.shape[1]))
-print("x_dev_count\t\tshape=(%s, %s)" %(x_dev_count.shape[0], x_dev_count.shape[1]))
-print("x_test_count\t\tshape=(%s, %s)" %(x_test_count.shape[0], x_test_count.shape[1]))
+print("x_train_count\t\tshape=(%s, %s)" % (x_train_count.shape[0], x_train_count.shape[1]))
+print("x_dev_count\t\tshape=(%s, %s)" % (x_dev_count.shape[0], x_dev_count.shape[1]))
+print("x_test_count\t\tshape=(%s, %s)" % (x_test_count.shape[0], x_test_count.shape[1]))
 print()
 
 # feature2: binary
 x_train_binary = tokenizer.texts_to_matrix(datas_word_train, mode='binary')
 x_dev_binary = tokenizer.texts_to_matrix(datas_word_dev, mode='binary')
 x_test_binary = tokenizer.texts_to_matrix(datas_word_test, mode='binary')
-print("x_train_binary\t\tshape=(%s, %s)" %(x_train_binary.shape[0], x_train_binary.shape[1]))
-print("x_dev_binary\t\tshape=(%s, %s)" %(x_dev_binary.shape[0], x_dev_binary.shape[1]))
-print("x_test_binary\t\tshape=(%s, %s)" %(x_test_binary.shape[0], x_test_binary.shape[1]))
+print("x_train_binary\t\tshape=(%s, %s)" % (x_train_binary.shape[0], x_train_binary.shape[1]))
+print("x_dev_binary\t\tshape=(%s, %s)" % (x_dev_binary.shape[0], x_dev_binary.shape[1]))
+print("x_test_binary\t\tshape=(%s, %s)" % (x_test_binary.shape[0], x_test_binary.shape[1]))
 print()
 
 # feature3: tf-idf
 x_train_tfidf = tokenizer.texts_to_matrix(datas_word_train, mode='tfidf')
 x_dev_tfidf = tokenizer.texts_to_matrix(datas_word_dev, mode='tfidf')
 x_test_tfidf = tokenizer.texts_to_matrix(datas_word_test, mode='tfidf')
-print("x_train_tfidf\t\tshape=(%s, %s)" %(x_train_tfidf.shape[0], x_train_tfidf.shape[1]))
-print("x_dev_tfidf\t\tshape=(%s, %s)" %(x_dev_tfidf.shape[0], x_dev_tfidf.shape[1]))
-print("x_test_tfidf\t\tshape=(%s, %s)" %(x_test_tfidf.shape[0], x_test_tfidf.shape[1]))
+print("x_train_tfidf\t\tshape=(%s, %s)" % (x_train_tfidf.shape[0], x_train_tfidf.shape[1]))
+print("x_dev_tfidf\t\tshape=(%s, %s)" % (x_dev_tfidf.shape[0], x_dev_tfidf.shape[1]))
+print("x_test_tfidf\t\tshape=(%s, %s)" % (x_test_tfidf.shape[0], x_test_tfidf.shape[1]))
 print()
 
 # feature4: freq
 x_train_freq = tokenizer.texts_to_matrix(datas_word_train, mode='freq')
 x_dev_freq = tokenizer.texts_to_matrix(datas_word_dev, mode='freq')
 x_test_freq = tokenizer.texts_to_matrix(datas_word_test, mode='freq')
-print("x_train_freq\t\tshape=(%s, %s)" %(x_train_freq.shape[0], x_train_freq.shape[1]))
-print("x_dev_freq\t\tshape=(%s, %s)" %(x_dev_freq.shape[0], x_dev_freq.shape[1]))
-print("x_test_freq\t\tshape=(%s, %s)" %(x_test_freq.shape[0], x_test_freq.shape[1]))
+print("x_train_freq\t\tshape=(%s, %s)" % (x_train_freq.shape[0], x_train_freq.shape[1]))
+print("x_dev_freq\t\tshape=(%s, %s)" % (x_dev_freq.shape[0], x_dev_freq.shape[1]))
+print("x_test_freq\t\tshape=(%s, %s)" % (x_test_freq.shape[0], x_test_freq.shape[1]))
 print()
 
 # feature5: word index for deep learning
@@ -145,6 +145,43 @@ max_word_length = max([len(x) for x in x_train_word_index])
 x_train_word_index = sequence.pad_sequences(x_train_word_index, maxlen=max_word_length)
 x_dev_word_index = sequence.pad_sequences(x_dev_word_index, maxlen=max_word_length)
 x_test_word_index = sequence.pad_sequences(x_test_word_index, maxlen=max_word_length)
-print("x_train_index\t\tshape=(%s, %s)" %(x_train_word_index.shape[0], x_train_word_index.shape[1]))
-print("x_dev_index\t\tshape=(%s, %s)" %(x_dev_word_index.shape[0], x_dev_word_index.shape[1]))
-print("x_test_index\t\tshape=(%s, %s)" %(x_test_word_index.shape[0], x_test_word_index.shape[1]))
+print("x_train_index\t\tshape=(%s, %s)" % (x_train_word_index.shape[0], x_train_word_index.shape[1]))
+print("x_dev_index\t\tshape=(%s, %s)" % (x_dev_word_index.shape[0], x_dev_word_index.shape[1]))
+print("x_test_index\t\tshape=(%s, %s)" % (x_test_word_index.shape[0], x_test_word_index.shape[1]))
+
+
+# y_train		length=264
+# y_dev		length=30
+# y_test		length=126
+#
+# x_train_count		shape=(264, 1598)
+# x_dev_count		shape=(30, 1598)
+# x_test_count		shape=(126, 1598)
+#
+# x_train_binary		shape=(264, 1598)
+# x_dev_binary		shape=(30, 1598)
+# x_test_binary		shape=(126, 1598)
+#
+# x_train_tfidf		shape=(264, 1598)
+# x_dev_tfidf		shape=(30, 1598)
+# x_test_tfidf		shape=(126, 1598)
+#
+# x_train_count		shape=(264, 1607)
+# x_dev_count		shape=(30, 1607)
+# x_test_count		shape=(126, 1607)
+#
+# x_train_binary		shape=(264, 1607)
+# x_dev_binary		shape=(30, 1607)
+# x_test_binary		shape=(126, 1607)
+#
+# x_train_tfidf		shape=(264, 1607)
+# x_dev_tfidf		shape=(30, 1607)
+# x_test_tfidf		shape=(126, 1607)
+#
+# x_train_freq		shape=(264, 1607)
+# x_dev_freq		shape=(30, 1607)
+# x_test_freq		shape=(126, 1607)
+#
+# x_train_index		shape=(264, 17)
+# x_dev_index		shape=(30, 17)
+# x_test_index		shape=(126, 17)
