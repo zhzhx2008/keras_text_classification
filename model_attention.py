@@ -2,7 +2,10 @@
 
 # @Author  : zhzhx2008
 # @Time    : 18-10-9
-
+#
+# from:
+# https://github.com/CyberZHG/keras-self-attention/blob/master/keras_self_attention/seq_weighted_attention.py
+# https://github.com/CyberZHG/keras-self-attention/blob/master/keras_self_attention/scaled_dot_attention.py
 
 import os
 import warnings
@@ -10,28 +13,148 @@ import warnings
 import jieba
 import numpy as np
 from keras import Input
+from keras import backend as K
 from keras import Model
 from keras.callbacks import EarlyStopping, ModelCheckpoint
-from keras.layers import Embedding, Dense, Dropout, GlobalMaxPool1D, Permute, Reshape, merge
+from keras.engine import Layer
+from keras.layers import Embedding, Dense, Dropout, GlobalMaxPool1D, Permute, Reshape, merge, initializers
 from keras.preprocessing.sequence import pad_sequences
 from keras.preprocessing.text import Tokenizer
 from keras.utils import to_categorical
 from sklearn.model_selection import train_test_split
 
-# from:https://github.com/philipperemy/keras-attention-mechanism/blob/master/attention_lstm.py
-def attention_3d_block(x):
-    # inputs.shape = (batch_size, time_steps, input_dim)
-    time_steps = int(x.shape[1])
-    input_dim = int(x.shape[2])
-    a = Permute((2, 1))(x)
-    a = Reshape((input_dim, time_steps))(a)  # this line is not useful. It's just to know which dimension is what.
-    a = Dense(time_steps, activation='softmax')(a)
-    # if SINGLE_ATTENTION_VECTOR:
-    #     a = Lambda(lambda x: K.mean(x, axis=1), name='dim_reduction')(a)
-    #     a = RepeatVector(input_dim)(a)
-    a_probs = Permute((2, 1), name='attention_vec')(a)
-    output_attention_mul = merge([x, a_probs], name='attention_mul', mode='mul')
-    return output_attention_mul
+
+class ScaledDotProductAttention(Layer):
+    r"""The attention layer that takes three inputs representing queries, keys and values.
+    \text{Attention}(Q, K, V) = \text{softmax}(\frac{Q K^T}{\sqrt{d_k}}) V
+    See: https://arxiv.org/pdf/1706.03762.pdf
+    """
+
+    def __init__(self,
+                 return_attention=False,
+                 history_only=False,
+                 **kwargs):
+        """Initialize the layer.
+        :param return_attention: Whether to return attention weights.
+        :param history_only: Whether to only use history data.
+        :param kwargs: Arguments for parent class.
+        """
+        super(ScaledDotProductAttention, self).__init__(**kwargs)
+        self.supports_masking = True
+        self.return_attention = return_attention
+        self.history_only = history_only
+
+    def get_config(self):
+        config = {
+            'return_attention': self.return_attention,
+            'history_only': self.history_only,
+        }
+        base_config = super(ScaledDotProductAttention, self).get_config()
+        return dict(list(base_config.items()) + list(config.items()))
+
+    def compute_output_shape(self, input_shape):
+        if isinstance(input_shape, list):
+            query_shape, key_shape, value_shape = input_shape
+        else:
+            query_shape = key_shape = value_shape = input_shape
+        output_shape = query_shape[:-1] + value_shape[-1:]
+        if self.return_attention:
+            attention_shape = query_shape[:2] + (key_shape[1],)
+            return [output_shape, attention_shape]
+        return output_shape
+
+    def compute_mask(self, inputs, mask=None):
+        if isinstance(mask, list):
+            mask = mask[0]
+        if self.return_attention:
+            return [mask, None]
+        return mask
+
+    def call(self, inputs, mask=None, **kwargs):
+        if isinstance(inputs, list):
+            query, key, value = inputs
+        else:
+            query = key = value = inputs
+        if isinstance(mask, list):
+            mask = mask[1]
+        feature_dim = K.shape(query)[-1]
+        e = K.batch_dot(query, key, axes=2) / K.sqrt(K.cast(feature_dim, dtype=K.floatx()))
+        e = K.exp(e - K.max(e, axis=-1, keepdims=True))
+        if self.history_only:
+            query_len, key_len = K.shape(query)[1], K.shape(key)[1]
+            indices = K.expand_dims(K.arange(0, key_len), axis=0)
+            upper = K.expand_dims(K.arange(0, query_len), axis=-1)
+            e *= K.expand_dims(K.cast(indices <= upper, K.floatx()), axis=0)
+        if mask is not None:
+            e *= K.cast(K.expand_dims(mask, axis=-2), K.floatx())
+        a = e / (K.sum(e, axis=-1, keepdims=True) + K.epsilon())
+        v = K.batch_dot(a, value)
+        if self.return_attention:
+            return [v, a]
+        return v
+
+
+class SeqWeightedAttention(Layer):
+    r"""Y = \text{softmax}(XW + b) X
+    See: https://arxiv.org/pdf/1708.00524.pdf
+    """
+
+    def __init__(self, use_bias=True, return_attention=False, **kwargs):
+        super(SeqWeightedAttention, self).__init__(**kwargs)
+        self.supports_masking = True
+        self.use_bias = use_bias
+        self.return_attention = return_attention
+        self.W, self.b = None, None
+
+    def get_config(self):
+        config = {
+            'use_bias': self.use_bias,
+            'return_attention': self.return_attention,
+        }
+        base_config = super(SeqWeightedAttention, self).get_config()
+        return dict(list(base_config.items()) + list(config.items()))
+
+    def build(self, input_shape):
+        self.W = self.add_weight(shape=(int(input_shape[2]), 1),
+                                 name='{}_W'.format(self.name),
+                                 initializer=initializers.get('uniform'))
+        if self.use_bias:
+            self.b = self.add_weight(shape=(1,),
+                                     name='{}_b'.format(self.name),
+                                     initializer=initializers.get('zeros'))
+        super(SeqWeightedAttention, self).build(input_shape)
+
+    def call(self, x, mask=None):
+        logits = K.dot(x, self.W)
+        if self.use_bias:
+            logits += self.b
+        x_shape = K.shape(x)
+        logits = K.reshape(logits, (x_shape[0], x_shape[1]))
+        ai = K.exp(logits - K.max(logits, axis=-1, keepdims=True))
+        if mask is not None:
+            mask = K.cast(mask, K.floatx())
+            ai = ai * mask
+        att_weights = ai / (K.sum(ai, axis=1, keepdims=True) + K.epsilon())
+        weighted_input = x * K.expand_dims(att_weights)
+        result = K.sum(weighted_input, axis=1)
+        if self.return_attention:
+            return [result, att_weights]
+        return result
+
+    def compute_output_shape(self, input_shape):
+        output_len = input_shape[2]
+        if self.return_attention:
+            return [(input_shape[0], output_len), (input_shape[0], input_shape[1])]
+        return input_shape[0], output_len
+
+    def compute_mask(self, _, input_mask=None):
+        if self.return_attention:
+            return [None, None]
+        return None
+
+    @staticmethod
+    def get_custom_objects():
+        return {'SeqWeightedAttention': SeqWeightedAttention}
 
 
 warnings.filterwarnings("ignore")
@@ -98,8 +221,12 @@ x_test_word_index = pad_sequences(x_test_word_index, maxlen=max_word_length)
 
 input = Input(shape=(max_word_length,))
 embedding = Embedding(len(tokenizer.word_index) + 1, 128)(input)
-attention_layer = attention_3d_block(embedding)
-global_max_pool = GlobalMaxPool1D()(attention_layer)
+
+# attention_layer = ScaledDotProductAttention()(embedding)
+# global_max_pool = GlobalMaxPool1D()(attention_layer)
+
+global_max_pool = SeqWeightedAttention()(embedding)
+
 drop = Dropout(0.2)(global_max_pool)
 output = Dense(num_classes, activation='softmax')(drop)
 model = Model(inputs=input, outputs=output)
@@ -125,6 +252,14 @@ evaluate = model.evaluate(x_test_word_index, y_test_index, batch_size=32, verbos
 print('loss value=' + str(evaluate[0]))
 print('metrics value=' + str(evaluate[1]))
 
-# loss value=1.1568151996249245
-# metrics value=0.6587301568379478
+# no attention
+# loss value=0.8432804005486625
+# metrics value=0.7539682511299376
 
+# ScaledDotProductAttention
+# loss value=0.8580162317033798
+# metrics value=0.7301587263743082
+
+# SeqWeightedAttention
+# loss value=2.091705948587448
+# metrics value=0.7063492035108899

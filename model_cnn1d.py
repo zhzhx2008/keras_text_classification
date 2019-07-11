@@ -115,8 +115,8 @@ model = Model(inputs=input, outputs=output)
 model.compile(loss='categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
 print(model.summary())
 
-model_weight_file = './model_cnn.h5'
-model_file = './model_cnn.model'
+model_weight_file = './model_cnn1d.h5'
+model_file = './model_cnn1d.model'
 early_stopping = EarlyStopping(monitor='val_loss', patience=5)
 model_checkpoint = ModelCheckpoint(model_weight_file, save_best_only=True, save_weights_only=True)
 model.fit(x_train_word_index,
