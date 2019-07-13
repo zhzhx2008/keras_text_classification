@@ -27,9 +27,9 @@ warnings.filterwarnings("ignore")
 seed = 2019
 np.random.seed(seed)
 
-config_path = '/home/zhzhx/workspace/pythonworkspace/bert/chinese_L-12_H-768_A-12/bert_config.json'
-checkpoint_path = '/home/zhzhx/workspace/pythonworkspace/bert/chinese_L-12_H-768_A-12/bert_model.ckpt'
-dict_path = '/home/zhzhx/workspace/pythonworkspace/bert/chinese_L-12_H-768_A-12/vocab.txt'
+config_path = './data/chinese_L-12_H-768_A-12/bert_config.json'
+checkpoint_path = './data/chinese_L-12_H-768_A-12/bert_model.ckpt'
+dict_path = './data/chinese_L-12_H-768_A-12/vocab.txt'
 
 token_dict = {}
 with open(dict_path, 'r') as reader:

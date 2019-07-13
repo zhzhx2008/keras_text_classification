@@ -20,9 +20,9 @@ from keras import initializers
 from keras.callbacks import EarlyStopping
 from keras.callbacks import ModelCheckpoint
 from keras.engine.topology import Layer
-from keras.layers import CuDNNGRU, GRU, LSTM
 from keras.layers import Dense, Input
 from keras.layers import Embedding, Bidirectional, TimeDistributed
+from keras.layers import LSTM
 from keras.models import Model
 from keras.preprocessing.sequence import pad_sequences
 from keras.preprocessing.text import Tokenizer
@@ -233,5 +233,5 @@ evaluate = model.evaluate(x_test, y_test_index, batch_size=32, verbose=2)
 print('loss value=' + str(evaluate[0]))
 print('metrics value=' + str(evaluate[1]))
 
-# loss value=1.13971778986946
-# metrics value=0.7222222165455894
+# loss value=0.5152941412395902
+# metrics value=0.8095238057393876

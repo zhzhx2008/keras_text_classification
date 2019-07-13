@@ -32,7 +32,7 @@ def get_labels_datas(input_dir):
         txt_names = os.listdir(os.path.join(input_dir, label_dir))
         for txt_name in txt_names:
             with open(os.path.join(input_dir, label_dir, txt_name), 'r') as fin:
-                content = fin.readline()# 只取第一行
+                content = fin.readline()  # 只取第一行
                 content = content.strip().replace(' ', '')
                 datas_word.append(' '.join(jieba.cut(content)))
                 datas_char.append(' '.join(list(content)))
@@ -73,7 +73,6 @@ tokenizer.fit_on_texts(datas_word_train)
 x_train_word_index = tokenizer.texts_to_sequences(datas_word_train)
 x_dev_word_index = tokenizer.texts_to_sequences(datas_word_dev)
 x_test_word_index = tokenizer.texts_to_sequences(datas_word_test)
-
 
 # FastText（模型很简单，比较复杂的是构造输入数据）
 ngram = 2
@@ -136,7 +135,7 @@ model.fit(x_train_index,
           epochs=1000,
           verbose=2,
           callbacks=[early_stopping, model_checkpoint],
-          validation_split=0.2,
+          validation_data=(x_dev_index, y_dev_index),
           shuffle=True)
 
 model.load_weights(model_weight_file)
@@ -145,5 +144,5 @@ evaluate = model.evaluate(x_test_index, y_test_index, batch_size=8, verbose=2)
 print('loss value=' + str(evaluate[0]))
 print('metrics value=' + str(evaluate[1]))
 
-# loss value=1.0374580744713071
-# metrics value=0.6269841279302325
+# loss value=0.705208887183477
+# metrics value=0.7619047609586564

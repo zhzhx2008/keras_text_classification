@@ -10,7 +10,6 @@ import warnings
 import jieba
 import numpy as np
 from lightgbm import LGBMClassifier
-from sklearn.discriminant_analysis import LinearDiscriminantAnalysis, QuadraticDiscriminantAnalysis
 from sklearn.ensemble import AdaBoostClassifier
 from sklearn.ensemble import ExtraTreesClassifier
 from sklearn.ensemble import GradientBoostingClassifier
@@ -21,7 +20,7 @@ from sklearn.linear_model import Perceptron
 from sklearn.linear_model import SGDClassifier
 from sklearn.metrics import accuracy_score
 from sklearn.model_selection import train_test_split
-from sklearn.naive_bayes import GaussianNB, BernoulliNB
+from sklearn.naive_bayes import BernoulliNB
 from sklearn.naive_bayes import MultinomialNB
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.neural_network import MLPClassifier
@@ -45,7 +44,7 @@ def get_labels_datas(input_dir):
         txt_names = os.listdir(os.path.join(input_dir, label_dir))
         for txt_name in txt_names:
             with open(os.path.join(input_dir, label_dir, txt_name), 'r') as fin:
-                content = fin.readline()# 只取第一行
+                content = fin.readline()  # 只取第一行
                 content = content.strip().replace(' ', '')
                 datas_word.append(' '.join(jieba.cut(content)))
                 datas_char.append(' '.join(list(content)))
@@ -76,7 +75,7 @@ y_test = [label_id_map.get(x) for x in labels_test]
 
 # sklearn extract feature
 # feature2: binary(csr_matrix)
-vectorizer = CountVectorizer(token_pattern=r"(?u)\b\w+\b", ngram_range=(1,1))# token_pattern must remove \w, or single char not counted
+vectorizer = CountVectorizer(token_pattern=r"(?u)\b\w+\b", ngram_range=(1, 1))  # token_pattern must remove \w, or single char not counted
 vectorizer.fit(datas_word_train)
 
 x_train_count = vectorizer.transform(datas_word_train)
@@ -124,20 +123,19 @@ for k, v in clf_dict.items():
     print('accuracy of ' + k + '=' + str(accuracy))
 
 
-
-# accuracy of LogisticRegression=0.6666666666666666
-# accuracy of SGDClassifier=0.6111111111111112
-# accuracy of Perceptron=0.6349206349206349
-# accuracy of MLPClassifier=0.6587301587301587
-# accuracy of KNeighborsClassifier=0.38095238095238093
-# accuracy of SVC=0.29365079365079366
-# accuracy of LinearSVC=0.6746031746031746
-# accuracy of DecisionTreeClassifier=0.5238095238095238
-# accuracy of RandomForestClassifier=0.5079365079365079
-# accuracy of ExtraTreesClassifier=0.5555555555555556
-# accuracy of AdaBoostClassifier=0.4603174603174603
 # accuracy of GradientBoostingClassifier=0.5793650793650794
-# accuracy of MultinomialNB=0.626984126984127
+# accuracy of XGBClassifier=0.5158730158730159
+# accuracy of SVC=0.29365079365079366
+# accuracy of LogisticRegression=0.6507936507936508
+# accuracy of MultinomialNB=0.6904761904761905
+# accuracy of KNeighborsClassifier=0.42857142857142855
+# accuracy of DecisionTreeClassifier=0.5476190476190477
 # accuracy of BernoulliNB=0.42063492063492064
-# accuracy of XGBClassifier=0.5714285714285714
+# accuracy of AdaBoostClassifier=0.3888888888888889
+# accuracy of SGDClassifier=0.6666666666666666
+# accuracy of LinearSVC=0.6825396825396826
+# accuracy of RandomForestClassifier=0.5158730158730159
+# accuracy of ExtraTreesClassifier=0.5476190476190477
+# accuracy of Perceptron=0.6587301587301587
 # accuracy of LGBMClassifier=0.3968253968253968
+# accuracy of MLPClassifier=0.7222222222222222

@@ -136,7 +136,7 @@ model.fit([x_train_word_index, x_train_word_index_left, x_train_word_index_right
           epochs=1000,
           verbose=2,
           callbacks=[early_stopping, model_checkpoint],
-          validation_split=0.2,
+          validation_data=([x_dev_word_index, x_dev_word_index_left, x_dev_word_index_right], y_dev_index),
           shuffle=True)
 
 model.load_weights(model_weight_file)
@@ -145,6 +145,5 @@ evaluate = model.evaluate([x_test_word_index, x_test_word_index_left, x_test_wor
 print('loss value=' + str(evaluate[0]))
 print('metrics value=' + str(evaluate[1]))
 
-
-# loss value=1.6584699854018197
-# metrics value=0.4920634925365448
+# loss value=1.4838370917335388
+# metrics value=0.45238095332705786

@@ -222,6 +222,8 @@ x_test_word_index = pad_sequences(x_test_word_index, maxlen=max_word_length)
 input = Input(shape=(max_word_length,))
 embedding = Embedding(len(tokenizer.word_index) + 1, 128)(input)
 
+# global_max_pool = GlobalMaxPool1D()(embedding)
+
 # attention_layer = ScaledDotProductAttention()(embedding)
 # global_max_pool = GlobalMaxPool1D()(attention_layer)
 
@@ -243,7 +245,7 @@ model.fit(x_train_word_index,
           epochs=1000,
           verbose=2,
           callbacks=[early_stopping, model_checkpoint],
-          validation_split=0.2,
+          validation_data=(x_dev_word_index, y_dev_index),
           shuffle=True)
 
 model.load_weights(model_weight_file)
@@ -253,13 +255,13 @@ print('loss value=' + str(evaluate[0]))
 print('metrics value=' + str(evaluate[1]))
 
 # no attention
-# loss value=0.8432804005486625
-# metrics value=0.7539682511299376
+# loss value=0.7034960370215159
+# metrics value=0.753968252076043
 
 # ScaledDotProductAttention
-# loss value=0.8580162317033798
-# metrics value=0.7301587263743082
+# loss value=0.756318453758482
+# metrics value=0.7142857180701362
 
 # SeqWeightedAttention
-# loss value=2.091705948587448
+# loss value=0.8874371742445325
 # metrics value=0.7063492035108899

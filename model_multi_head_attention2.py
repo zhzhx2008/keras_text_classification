@@ -8,6 +8,7 @@
 # https://github.com/bojone/attention/blob/master/attention_keras.py
 
 
+import math
 import os
 import warnings
 
@@ -19,6 +20,7 @@ from keras.callbacks import EarlyStopping
 from keras.callbacks import ModelCheckpoint
 from keras.engine.topology import Layer, Input
 from keras.layers import Embedding, SpatialDropout1D, GlobalAveragePooling1D, Dropout, Dense, initializers, regularizers, constraints
+from keras.optimizers import Adam
 from keras.preprocessing.sequence import pad_sequences
 from keras.preprocessing.text import Tokenizer
 from keras.utils import to_categorical
@@ -252,79 +254,234 @@ class TrigPosEmbedding(Layer):
 
 
 class Attention(Layer):
-    def __init__(self, nb_head, size_per_head, mask_right=False, **kwargs):
-        self.nb_head = nb_head
+    def __init__(self,
+                 attention_mask=None,
+                 num_attention_heads=1,
+                 size_per_head=512,
+                 query_act=None,
+                 key_act=None,
+                 value_act=None,
+                 attention_probs_dropout_prob=0.0,
+                 initializer_range=0.02,
+                 do_return_2d_tensor=False,
+                 from_seq_length=None,
+                 to_seq_length=None,
+                 W_regularizer=None, b_regularizer=None,
+                 W_constraint=None, b_constraint=None,
+                 bias=True,
+                 **kwargs):
+
+        self.init = initializers.truncated_normal(stddev=initializer_range)
+
+        self.attention_mask = attention_mask
+        self.num_attention_heads = num_attention_heads
         self.size_per_head = size_per_head
-        self.output_dim = nb_head * size_per_head
-        self.mask_right = mask_right
+        self.query_act = query_act
+        self.key_act = key_act
+        self.value_act = value_act
+        self.attention_probs_dropout_prob = attention_probs_dropout_prob
+        self.initializer_range = initializer_range
+        self.do_return_2d_tensor = do_return_2d_tensor
+        self.from_seq_length = from_seq_length
+        self.to_seq_length = to_seq_length
+
+        self.output_dim = num_attention_heads * size_per_head
+
+        self.W_regularizer = regularizers.get(W_regularizer)
+        self.b_regularizer = regularizers.get(b_regularizer)
+        self.W_constraint = constraints.get(W_constraint)
+        self.b_constraint = constraints.get(b_constraint)
+        self.bias = bias
+
         super(Attention, self).__init__(**kwargs)
 
     def build(self, input_shape):
-        self.WQ = self.add_weight(name='WQ',
-                                  shape=(input_shape[0][-1], self.output_dim),
-                                  initializer='glorot_uniform',
-                                  trainable=True)
-        self.WK = self.add_weight(name='WK',
-                                  shape=(input_shape[1][-1], self.output_dim),
-                                  initializer='glorot_uniform',
-                                  trainable=True)
-        self.WV = self.add_weight(name='WV',
-                                  shape=(input_shape[2][-1], self.output_dim),
-                                  initializer='glorot_uniform',
-                                  trainable=True)
+
+        assert len(input_shape) == 2
+        from_shape, to_shape = input_shape
+
+        self.WQ = self.add_weight(name='{}_WQ'.format(self.name),
+                                  shape=(from_shape[-1], self.output_dim),
+                                  initializer=self.init,
+                                  regularizer=self.W_regularizer,
+                                  trainable=True,
+                                  constraint=self.b_constraint)
+        self.WK = self.add_weight(name='{}_WK'.format(self.name),
+                                  shape=(to_shape[-1], self.output_dim),
+                                  initializer=self.init,
+                                  regularizer=self.W_regularizer,
+                                  trainable=True,
+                                  constraint=self.b_constraint)
+        self.WV = self.add_weight(name='{}_WV'.format(self.name),
+                                  shape=(to_shape[-1], self.output_dim),
+                                  initializer=self.init,
+                                  regularizer=self.W_regularizer,
+                                  trainable=True,
+                                  constraint=self.b_constraint)
+        if self.bias:
+            self.bq = self.add_weight(name='{}_bq'.format(self.name),
+                                      shape=(self.output_dim,),
+                                      initializer='zero',
+                                      regularizer=self.b_regularizer,
+                                      trainable=True,
+                                      constraint=self.b_constraint)
+            self.bk = self.add_weight(name='{}_bk'.format(self.name),
+                                      shape=(self.output_dim,),
+                                      initializer='zero',
+                                      regularizer=self.b_regularizer,
+                                      trainable=True,
+                                      constraint=self.b_constraint)
+            self.bv = self.add_weight(name='{}_bv'.format(self.name),
+                                      shape=(self.output_dim,),
+                                      initializer='zero',
+                                      regularizer=self.b_regularizer,
+                                      trainable=True,
+                                      constraint=self.b_constraint)
+
         super(Attention, self).build(input_shape)
 
-    def Mask(self, inputs, seq_len, mode='mul'):
-        if seq_len == None:
-            return inputs
-        else:
-            mask = K.one_hot(seq_len[:, 0], K.shape(inputs)[1])
-            mask = 1 - K.cumsum(mask, 1)
-            for _ in range(len(inputs.shape) - 2):
-                mask = K.expand_dims(mask, 2)
-            if mode == 'mul':
-                return inputs * mask
-            if mode == 'add':
-                return inputs - (1 - mask) * 1e12
+    def call(self, inputs, **kwargs):
 
-    def call(self, x, **kwargs):
-        # 如果只传入Q_seq,K_seq,V_seq，那么就不做Mask
-        # 如果同时传入Q_seq,K_seq,V_seq,Q_len,V_len，那么对多余部分做Mask
-        Q_seq, K_seq, V_seq, Q_len, V_len = None, None, None, None, None
-        if len(x) == 3:
-            Q_seq, K_seq, V_seq = x
-            Q_len, V_len = None, None
-        elif len(x) == 5:
-            Q_seq, K_seq, V_seq, Q_len, V_len = x
-        # 对Q、K、V做线性变换
-        Q_seq = K.dot(Q_seq, self.WQ)
-        Q_seq = K.reshape(Q_seq, (-1, K.shape(Q_seq)[1], self.nb_head, self.size_per_head))
-        Q_seq = K.permute_dimensions(Q_seq, (0, 2, 1, 3))
-        K_seq = K.dot(K_seq, self.WK)
-        K_seq = K.reshape(K_seq, (-1, K.shape(K_seq)[1], self.nb_head, self.size_per_head))
-        K_seq = K.permute_dimensions(K_seq, (0, 2, 1, 3))
-        V_seq = K.dot(V_seq, self.WV)
-        V_seq = K.reshape(V_seq, (-1, K.shape(V_seq)[1], self.nb_head, self.size_per_head))
-        V_seq = K.permute_dimensions(V_seq, (0, 2, 1, 3))
-        # 计算内积，然后mask，然后softmax
-        A = K.batch_dot(Q_seq, K_seq, axes=[3, 3]) / self.size_per_head ** 0.5
-        A = K.permute_dimensions(A, (0, 3, 2, 1))
-        A = self.Mask(A, V_len, 'add')
-        A = K.permute_dimensions(A, (0, 3, 2, 1))
-        if self.mask_right:
-            ones = K.ones_like(A[:1, :1])
-            mask = (ones - K.tf.matrix_band_part(ones, -1, 0)) * 1e12
-            A = A - mask
-        A = K.softmax(A)
-        # 输出并mask
-        O_seq = K.batch_dot(A, V_seq, axes=[3, 2])
-        O_seq = K.permute_dimensions(O_seq, (0, 2, 1, 3))
-        O_seq = K.reshape(O_seq, (-1, K.shape(O_seq)[1], self.output_dim))
-        O_seq = self.Mask(O_seq, Q_len, 'mul')
-        return O_seq
+        def reshape_to_matrix(input_tensor):
+            ndims = K.ndim(input_tensor)
+            if ndims < 2:
+                raise ValueError("Input tensor must have at least rank 2. Shape = %s" %
+                                 (input_tensor.shape))
+            if ndims == 2:
+                return input_tensor
+
+            width = input_tensor.shape[-1]
+            output_tensor = K.reshape(input_tensor, [-1, width])
+            return output_tensor
+
+        def dense(x, w, b, act):
+            x = K.dot(x, w)
+            if b:
+                x = K.bias_add(x, b)
+            if act.lower().strip() == 'softmax':
+                x = K.softmax(x)
+            elif act.lower().strip() == 'elu':
+                x = K.elu(x)
+            elif act.lower().strip() == 'gelu':
+                x = 0.5 * x * (1 + K.tanh(math.sqrt(2 / np.pi) * (x + 0.044715 * K.pow(x, 3))))
+            elif act.lower().strip() == 'selu':
+                alpha = 1.6732632423543772848170429916717
+                scale = 1.0507009873554804934193349852946
+                x = scale * K.elu(x, alpha)
+            elif act.lower().strip() == 'softplus':
+                x = K.softplus(x)
+            elif act.lower().strip() == 'softsign':
+                x = K.softsign(x)
+            elif act.lower().strip() == 'relu':
+                x = K.relu(x)
+            elif act.lower().strip() == 'leaky_relu':
+                x = K.relu(x, alpha=0.01)
+            elif act.lower().strip() == 'tanh':
+                x = K.tanh(x)
+            elif act.lower().strip() == 'sigmoid':
+                x = K.sigmoid(x)
+            elif act.lower().strip() == 'hard_sigmoid':
+                x = K.hard_sigmoid(x)
+            return x
+
+        from_tensor, to_tensor = inputs
+        from_shape = K.int_shape(from_tensor)
+        to_shape = K.int_shape(to_tensor)
+
+        if len(from_shape) != len(to_shape):
+            raise ValueError(
+                "The rank of `from_tensor` must match the rank of `to_tensor`.")
+
+        if len(from_shape) == 3:
+            self.from_seq_length = from_shape[1]
+            self.to_seq_length = to_shape[1]
+        elif len(from_shape) == 2:
+            if (self.from_seq_length is None or self.to_seq_length is None):
+                raise ValueError(
+                    "When passing in rank 2 tensors to attention_layer, the values "
+                    "for `batch_size`, `from_seq_length`, and `to_seq_length` "
+                    "must all be specified.")
+
+        # Scalar dimensions referenced here:
+        #   B = batch size (number of sequences)
+        #   F = `from_tensor` sequence length
+        #   T = `to_tensor` sequence length
+        #   N = `num_attention_heads`
+        #   H = `size_per_head`
+
+        from_tensor_2d = reshape_to_matrix(from_tensor)
+        to_tensor_2d = reshape_to_matrix(to_tensor)
+
+        # `query_layer` = [B*F, N*H]
+        query_layer = dense(from_tensor_2d, self.WQ, self.bq, self.query_act)
+        # `key_layer` = [B*T, N*H]
+        key_layer = dense(to_tensor_2d, self.WK, self.bk, self.key_act)
+        # `value_layer` = [B*T, N*H]
+        value_layer = dense(to_tensor_2d, self.WV, self.bv, self.value_act)
+
+        # `query_layer` = [B, F, N, H]
+        query_layer = K.reshape(query_layer, [-1, self.from_seq_length, self.num_attention_heads, self.size_per_head])
+        # `query_layer` = [B, N, F, H]
+        query_layer = K.permute_dimensions(query_layer, [0, 2, 1, 3])
+        # `key_layer` = [B, T, N, H]
+        key_layer = K.reshape(key_layer, [-1, self.to_seq_length, self.num_attention_heads, self.size_per_head])
+        # `key_layer` = [B, N, T, H]
+        key_layer = K.permute_dimensions(key_layer, [0, 2, 1, 3])
+
+        # Take the dot product between "query" and "key" to get the raw
+        # attention scores.
+        # `attention_scores` = [B, N, F, T]
+        attention_scores = K.batch_dot(query_layer, key_layer, axes=[3, 3])
+        attention_scores = attention_scores * 1.0 / K.sqrt(K.cast(self.size_per_head, dtype=K.floatx()))
+
+        if self.attention_mask is not None:
+            # `attention_mask` = [B, 1, F, T]
+            attention_mask = K.expand_dims(self.attention_mask, axis=1)
+
+            # Since attention_mask is 1.0 for positions we want to attend and 0.0 for
+            # masked positions, this operation will create a tensor which is 0.0 for
+            # positions we want to attend and -10000.0 for masked positions.
+            adder = (1.0 - K.cast(attention_mask, dtype=K.floatx())) * -10000.0
+
+            # Since we are adding it to the raw scores before the softmax, this is
+            # effectively the same as removing these entirely.
+            attention_scores += adder
+
+        # Normalize the attention scores to probabilities.
+        # `attention_probs` = [B, N, F, T]
+        attention_probs = K.softmax(attention_scores)
+
+        # This is actually dropping out entire tokens to attend to, which might
+        # seem a bit unusual, but is taken from the original Transformer paper.
+        attention_probs = K.dropout(attention_probs, self.attention_probs_dropout_prob)
+
+        # `value_layer` = [B, T, N, H]
+        value_layer = K.reshape(value_layer, [-1, self.to_seq_length, self.num_attention_heads, self.size_per_head])
+
+        # `value_layer` = [B, N, T, H]
+        value_layer = K.permute_dimensions(value_layer, [0, 2, 1, 3])
+
+        # `context_layer` = [B, N, F, H]
+        context_layer = K.batch_dot(attention_probs, value_layer, axes=[3, 2])
+
+        # `context_layer` = [B, F, N, H]
+        context_layer = K.permute_dimensions(context_layer, [0, 2, 1, 3])
+
+        if self.do_return_2d_tensor:
+            # `context_layer` = [B*F, N*V]
+            context_layer = K.reshape(context_layer, [-1, self.num_attention_heads * self.size_per_head])
+        else:
+            # `context_layer` = [B, F, N*V]
+            context_layer = K.reshape(context_layer, [-1, self.from_seq_length, self.num_attention_heads * self.size_per_head])
+
+        return context_layer
 
     def compute_output_shape(self, input_shape):
-        return (input_shape[0][0], input_shape[0][1], self.output_dim)
+        from_shape, to_shape = input_shape
+        if self.do_return_2d_tensor:
+            return from_shape[0], self.num_attention_heads * self.size_per_head
+        else:
+            return from_shape[0], self.from_seq_length, self.num_attention_heads * self.size_per_head
 
 
 warnings.filterwarnings("ignore")
@@ -397,16 +554,22 @@ embedding = Embedding(len(tokenizer.word_index) + 1, 128)(input)
 embedding = PositionEmbedding(input_dim=128, output_dim=128, mode='add')(embedding)
 
 embedding = SpatialDropout1D(0.2)(embedding)
-att = Attention(8, 16)([embedding, embedding, embedding])
+att = Attention(
+    num_attention_heads=8,
+    size_per_head=16,
+    query_act='gelu',
+    key_act='gelu',
+    value_act='gelu',
+)([embedding, embedding])
 att = GlobalAveragePooling1D()(att)
 att = Dropout(0.2)(att)
 output = Dense(num_classes, activation='softmax')(att)
 model = Model(inputs=input, outputs=output)
-model.compile(loss='categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
+model.compile(loss='categorical_crossentropy', optimizer=Adam(lr=0.001), metrics=['accuracy'])
 print(model.summary())
 
-model_weight_file = './model_multi_head_attention.h5'
-model_file = './model_multi_head_attention.model'
+model_weight_file = './model_multi_head_attention2.h5'
+model_file = './model_multi_head_attention2.model'
 early_stopping = EarlyStopping(monitor='val_loss', patience=5)
 model_checkpoint = ModelCheckpoint(model_weight_file, save_best_only=True, save_weights_only=True)
 model.fit(x_train_word_index,
@@ -425,13 +588,13 @@ print('loss value=' + str(evaluate[0]))
 print('metrics value=' + str(evaluate[1]))
 
 # no position embedding
-# loss value=0.8326842557816279
-# metrics value=0.7539682530221485
+# loss value=1.2348843093902346
+# metrics value=0.6190476199937245
 
 # TrigPosEmbedding
-# loss value=1.0734127722089253
-# metrics value=0.6111111111111112
+# loss value=1.2277849931565543
+# metrics value=0.603174603647656
 
 # PositionEmbedding
-# loss value=0.9529068337546455
-# metrics value=0.6587301596762642
+# loss value=1.3800227547448778
+# metrics value=0.5000000004730527

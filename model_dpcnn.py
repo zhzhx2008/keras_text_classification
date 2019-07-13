@@ -24,11 +24,11 @@ def block(x, pool_size=3, strides=2, kernel_size=3):
     filters = x.shape[2].value
     x = MaxPooling1D(pool_size=pool_size, strides=strides, padding='same')(x)
     x_origin = x
-    x = Activation('relu')(x) # pre-activation
+    x = Activation('relu')(x)  # pre-activation
     x = Conv1D(filters=filters, kernel_size=kernel_size, padding='same', activation='linear')(x)
-    x = Activation('relu')(x) # pre-activation
+    x = Activation('relu')(x)  # pre-activation
     x = Conv1D(filters=filters, kernel_size=kernel_size, padding='same', activation='linear')(x)
-    x = add([x_origin, x]) # shortcut connections
+    x = add([x_origin, x])  # shortcut connections
     return x
 
 
@@ -122,7 +122,7 @@ model.fit(x_train_word_index,
           epochs=1000,
           verbose=2,
           callbacks=[early_stopping, model_checkpoint],
-          validation_split=0.2,
+          validation_data=(x_dev_word_index, y_dev_index),
           shuffle=True)
 
 model.load_weights(model_weight_file)
@@ -131,5 +131,5 @@ evaluate = model.evaluate(x_test_word_index, y_test_index, batch_size=32, verbos
 print('loss value=' + str(evaluate[0]))
 print('metrics value=' + str(evaluate[1]))
 
-# loss value=1.3148481088971335
-# metrics value=0.5000000018922109
+# loss value=1.1474063472142295
+# metrics value=0.6031746022284977
