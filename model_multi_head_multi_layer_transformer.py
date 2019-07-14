@@ -2,10 +2,6 @@
 
 # @Author  : zhzhx2008
 # @Time    : 19-7-11
-#
-# From:
-# https://kexue.fm/archives/4765
-# https://github.com/bojone/attention/blob/master/attention_keras.py
 
 
 import math
@@ -27,6 +23,7 @@ from keras.utils import to_categorical
 from sklearn.model_selection import train_test_split
 
 
+# from:https://github.com/CyberZHG/keras-pos-embd/blob/master/keras_pos_embd/pos_embd.py
 class PositionEmbedding(Layer):
     """Turn integers (positions) into dense vectors of fixed size.
     eg. [[-4], [10]] -> [[0.25, 0.1], [0.6, -0.2]]
@@ -153,6 +150,7 @@ class PositionEmbedding(Layer):
         return K.concatenate([inputs, pos_embeddings], axis=-1)
 
 
+# from:https://github.com/CyberZHG/keras-pos-embd/blob/master/keras_pos_embd/trig_pos_embd.py
 class TrigPosEmbedding(Layer):
     """Position embedding use sine and cosine functions.
     See: https://arxiv.org/pdf/1706.03762
@@ -253,6 +251,7 @@ class TrigPosEmbedding(Layer):
         return output
 
 
+# reference:https://github.com/google-research/bert/blob/master/modeling.py
 class Attention(Layer):
     def __init__(self,
                  attention_mask=None,
@@ -484,6 +483,7 @@ class Attention(Layer):
             return from_shape[0], self.from_seq_length, self.num_attention_heads * self.size_per_head
 
 
+# from:https://github.com/CyberZHG/keras-layer-normalization/blob/master/keras_layer_normalization/layer_normalization.py
 class LayerNormalization(Layer):
     def __init__(self,
                  center=True,
@@ -608,6 +608,7 @@ def reshape_from_matrix(output_tensor, orig_shape_tuple):
     return Lambda(lambda x: K.reshape(x, orig_dims + [width]))(output_tensor)
 
 
+# reference:https://github.com/google-research/bert/blob/master/modeling.py
 def Transformer(input_tensor,
                 attention_mask=None,
                 hidden_size=768,
@@ -802,7 +803,7 @@ model.fit(x_train_word_index,
           shuffle=True)
 
 model.load_weights(model_weight_file)
-# model save error, if you want saved model, see https://github.com/keras-team/keras/issues/9342
+# model save error, if you want save model, see https://github.com/keras-team/keras/issues/9342
 # model.save(model_file)
 evaluate = model.evaluate(x_test_word_index, y_test_index, batch_size=8, verbose=2)
 print('loss value=' + str(evaluate[0]))

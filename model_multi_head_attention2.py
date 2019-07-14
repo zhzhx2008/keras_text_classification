@@ -2,10 +2,6 @@
 
 # @Author  : zhzhx2008
 # @Time    : 19-7-11
-#
-# From:
-# https://kexue.fm/archives/4765
-# https://github.com/bojone/attention/blob/master/attention_keras.py
 
 
 import math
@@ -27,6 +23,7 @@ from keras.utils import to_categorical
 from sklearn.model_selection import train_test_split
 
 
+# from:https://github.com/CyberZHG/keras-pos-embd/blob/master/keras_pos_embd/pos_embd.py
 class PositionEmbedding(Layer):
     """Turn integers (positions) into dense vectors of fixed size.
     eg. [[-4], [10]] -> [[0.25, 0.1], [0.6, -0.2]]
@@ -153,6 +150,7 @@ class PositionEmbedding(Layer):
         return K.concatenate([inputs, pos_embeddings], axis=-1)
 
 
+# from:https://github.com/CyberZHG/keras-pos-embd/blob/master/keras_pos_embd/trig_pos_embd.py
 class TrigPosEmbedding(Layer):
     """Position embedding use sine and cosine functions.
     See: https://arxiv.org/pdf/1706.03762
@@ -253,6 +251,7 @@ class TrigPosEmbedding(Layer):
         return output
 
 
+# reference:https://github.com/google-research/bert/blob/master/modeling.py
 class Attention(Layer):
     def __init__(self,
                  attention_mask=None,
