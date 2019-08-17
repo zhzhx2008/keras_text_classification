@@ -4,7 +4,6 @@
 # @Time    : 19-7-11
 
 
-import math
 import os
 import warnings
 
@@ -362,7 +361,7 @@ class Attention(Layer):
             elif act.lower().strip() == 'elu':
                 x = K.elu(x)
             elif act.lower().strip() == 'gelu':
-                x = 0.5 * x * (1 + K.tanh(math.sqrt(2 / np.pi) * (x + 0.044715 * K.pow(x, 3))))
+                x = 0.5 * x * (1.0 + K.tanh(np.sqrt(2 / np.pi) * (x + 0.044715 * K.pow(x, 3))))
             elif act.lower().strip() == 'selu':
                 alpha = 1.6732632423543772848170429916717
                 scale = 1.0507009873554804934193349852946
